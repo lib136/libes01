@@ -1,21 +1,106 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>도서관 탈출 게임</title>
+    <meta charset="UTF-8">
+    <title>Library Escape: Final</title>
     <style>
-        body { background-color: #f0f0f0; text-align: center; padding-top: 50px; font-family: sans-serif; }
-        .box { border: 2px solid #333; padding: 20px; display: inline-block; background: white; }
+        :root { --b-f:#5d6d7e; --b-r:#58a68c; --b-b:#a93226; --b-l:#d4ac0d; --b-c:#f4f6f7; --side:#2c3e50; --rust:2px solid #000; }
+        * { box-sizing:border-box; margin:0; padding:0; font-family:'Courier New', monospace; }
+        body { background:#111; display:flex; justify-content:center; align-items:center; height:100vh; overflow:hidden; }
+        #g { display:flex; width:900px; height:550px; border:4px solid #000; background:#fff; position:relative; }
+        #vw { flex:4; position:relative; overflow:hidden; }
+        #sd { width:150px; background:var(--side); border-left:4px solid #000; display:grid; grid-template-columns:1fr 1fr; grid-template-rows:repeat(4,1fr); gap:5px; padding:10px; }
+        .slot { border:1px solid #555; background:rgba(255,255,255,.1); color:#fff; font-size:10px; display:flex; align-items:center; justify-content:center; cursor:pointer; text-align:center; }
+        .nav { position:absolute; background:rgba(0,0,0,.3); color:#fff; border:none; padding:15px 10px; cursor:pointer; z-index:10; }
+        #b-l { left:0; top:50%; } #b-r { right:0; top:50%; } #b-u { top:0; left:50%; transform:translateX(-50%); } #b-d { bottom:0; left:50%; transform:translateX(-50%); }
+        .obj { position:absolute; border:var(--rust); background:#fff; cursor:pointer; }
+        .digit { font-size:30px; padding:5px; background:#ddd; border:1px solid #000; margin:0 5px; cursor:pointer; }
+        .book { width:40px; height:160px; color:#fff; writing-mode:vertical-rl; padding:5px; font-size:11px; border:1px solid #000; }
+        .sel { border:3px solid #fff; filter:brightness(0.7); }
+        #modal, #clear { position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,.8); display:none; justify-content:center; align-items:center; z-index:100; color:#000; }
+        #m-box, #c-box { background:#fff; padding:30px; border:4px solid #000; text-align:center; max-width:500px; }
+        .shake { animation: sk .25s; } @keyframes sk { 0%,100%{transform:translateX(0)} 25%{transform:translateX(-8px)} 75%{transform:translateX(8px)} }
+        .hidden { display:none; }
     </style>
 </head>
 <body>
-    <div class="box">
-        <h1>📚 도서관 탈출 프로젝트</h1>
-        <p>이용자님의 게임이 시작되었습니다!</p>
-        <button onclick="alert('800번대 문이 열렸습니다!')">문 클릭하기</button>
+    <div id="g">
+        <div id="vw">
+            <button id="b-l" class="nav" onclick="rot('l')">◀</button>
+            <button id="b-r" class="nav" onclick="rot('r')">▶</button>
+            <button id="b-u" class="nav" onclick="ceil(1)">▲</button>
+            <button id="b-d" class="nav hidden" onclick="ceil(0)">▼</button>
+            <div id="v-front" class="v">
+                <div id="door" class="obj" style="left:340px; top:200px; width:120px; height:200px; background:#4e342e;" onclick="exit()">EXIT</div>
+                <div id="p1" class="obj" style="left:100px; top:150px; padding:15px; width:220px;">
+                    <p>04월 12일 대출</p><br>
+                    <p>반납: 04월 <span id="d1" class="digit" onclick="cnt(0)">0</span><span id="d2" class="digit" onclick="cnt(1)">0</span>일</p>
+                </div>
+            </div>
+            <div id="v-right" class="v hidden">
+                <div id="p2" class="obj" style="left:20px; top:80px; display:flex; gap:5px; padding:10px; background:#3e2723;"></div>
+                <div id="p3-bks" class="obj" style="left:400px; top:150px; display:flex; gap:5px; padding:10px; background:#3e2723;"></div>
+            </div>
+            <div id="v-back" class="v hidden">
+                <div class="obj" style="left:150px; top:150px; width:250px; height:180px; padding:10px; background:#cfd8dc;">
+                    <p>OPAC: [작별하지 않는다]</p><hr><p style="font-size:12px; margin-top:40px;">검색 결과가 있습니다.</p>
+                </div>
+                <div id="ptr" class="obj" style="left:420px; top:240px; width:100px; height:60px; background:#90a4ae;">
+                    PRINTER
+                    <div id="slip-p" class="obj" style="top:-30px; left:20px; width:40px; height:50px; font-size:4px; overflow:hidden;" onclick="pickup('slip')">서명...<br>813.6...</div>
+                </div>
+            </div>
+            <div id="v-left" class="v hidden"><p style="padding:100px; color:#fff;">[열람실 창가]</p></div>
+            <div id="v-ceiling" class="v hidden"><p style="padding:100px; text-align:center;">[전등]</p></div>
+        </div>
+        <div id="sd"></div>
     </div>
+    <div id="modal" onclick="this.style.display='none'"><div id="m-box"><h2 id="m-t"></h2><hr style="margin:10px 0"><p id="m-d"></p></div></div>
+    <div id="clear"><div id="c-box"><h2>탈출 성공!</h2><p style="margin:20px 0; line-height:1.6; text-align:left;">- 대출 기간(14일) 준수 완료!<br>- 한국어 서적 배열(ㄱㄴㄷㄹ) 숙지 완료!<br>- OPAC 청구기호 확인 완료!</p><button onclick="location.reload()" style="padding:10px 20px; cursor:pointer;">다시 하기</button></div></div>
 
     <script>
-        console.log("게임 엔진 가동 중...");
+        const state = {
+            v:'front', prev:'front',
+            inv:{ k1:{o:0,n:'열쇠 1',d:'반납일 규칙 준수.'}, k2:{o:0,n:'열쇠 2',d:'청구기호 순서 정렬.'}, k3:{o:0,n:'열쇠 3',d:'도서관 전표로 도서 찾음.'}, slip:{o:0,n:'도서 전표',d:'서명:작별하지 않는다\n청구기호:813.6-ㅎ225ㅈ\n등록번호:LLM002213\n자료실:종합자료실'} },
+            p1:[0,0], p1ok:0, p2:[3,1,0,2], p2s:null, p2ok:0
+        };
+        const bl=['813.6-ㄱ175ㅇ','813.6-ㄴ54ㅎ','813.6-ㄷ92ㄱ','813.6-ㄹ11ㅂ'], vC={front:'var(--b-f)',right:'var(--b-r)',back:'var(--b-b)',left:'var(--b-l)',ceiling:'var(--b-c)'};
+
+        function sm(t, d) { document.getElementById('m-t').innerText=t; document.getElementById('m-d').innerText=d; document.getElementById('modal').style.display='flex'; }
+        function render() {
+            document.querySelectorAll('.v').forEach(e=>e.classList.add('hidden'));
+            document.getElementById(`v-${state.v}`).classList.remove('hidden');
+            document.getElementById('vw').style.background=vC[state.v];
+            document.getElementById('b-d').className=(state.v==='ceiling')?'nav':'nav hidden';
+            const s=document.getElementById('sd'); s.innerHTML='';
+            Object.keys(state.inv).forEach(k=>{
+                let v=document.createElement('div'); v.className='slot'; v.innerText=state.inv[k].o?state.inv[k].n:'Empty';
+                v.onclick=()=>{if(state.inv[k].o)sm(state.inv[k].n, state.inv[k].d)}; s.appendChild(v);
+            });
+            document.getElementById('d1').innerText=state.p1[0]; document.getElementById('d2').innerText=state.p1[1];
+            if(state.p1[0]==2 && state.p1[1]==6 && !state.p1ok){ state.p1ok=1; pickup('k1'); sm('SUCCESS','열쇠 1(Red)을 얻었습니다!'); }
+            const shelf=document.getElementById('p2'); shelf.innerHTML='';
+            state.p2.forEach((v,i)=>{
+                let b=document.createElement('div'); b.className='book'+(state.p2s===i?' sel':''); b.innerText=bl[v]; b.style.background=`hsl(${v*40+20},40%,40%)`;
+                b.onclick=()=>{if(state.p2ok)return; if(state.p2s===null)state.p2s=i; else{[state.p2[state.p2s],state.p2[i]]=[state.p2[i],state.p2[state.p2s]]; state.p2s=null;} render();};
+                shelf.appendChild(b);
+            });
+            if(JSON.stringify(state.p2)=='[0,1,2,3]' && !state.p2ok){ state.p2ok=1; pickup('k2'); sm('SUCCESS','열쇠 2(Blue)를 얻었습니다!'); }
+            const bks=document.getElementById('p3-bks'); bks.innerHTML='';
+            ['813.6-ㅎ224','813.6-ㅎ225ㅈ','813.6-ㅎ226'].forEach(id=>{
+                let b=document.createElement('div'); b.className='book'; b.innerText=id; b.style.background='#1a5276';
+                b.onclick=()=>{if(id==='813.6-ㅎ225ㅈ'&&state.inv.slip.o&&!state.inv.k3.o){pickup('k3'); sm('SUCCESS','열쇠 3(Yellow)을 얻었습니다!');} };
+                if(state.inv.k3.o && id==='813.6-ㅎ225ㅈ') b.style.opacity=0.3; bks.appendChild(b);
+            });
+            if(state.inv.slip.o && document.getElementById('slip-p')) document.getElementById('slip-p').remove();
+        }
+        function rot(d){const q=['front','right','back','left']; let i=q.indexOf(state.v); state.v=q[d=='r'?(i+1)%4:(i+3)%4]; shk(); render();}
+        function ceil(o){state.v=o?'ceiling':state.prev; shk(); render();}
+        function cnt(i){if(!state.p1ok){state.p1[i]=(state.p1[i]+1)%10; render();}}
+        function pickup(k){state.inv[k].o=1; if(k==='slip')sm('GET','도서관 전표를 얻었습니다!'); render();}
+        function exit(){ if(state.inv.k1.o&&state.inv.k2.o&&state.inv.k3.o)document.getElementById('clear').style.display='flex'; else sm('Locked','아직 문이 잠겨 있습니다. 3개의 열쇠가 모두 필요합니다.'); }
+        function shk(){const v=document.getElementById('vw'); v.classList.remove('shake'); void v.offsetWidth; v.classList.add('shake');}
+        render();
     </script>
 </body>
 </html>
